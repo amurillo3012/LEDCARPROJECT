@@ -1,0 +1,55 @@
+workflows:
+  ios-workflow:
+    name: Build iOS App
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    
+    environment:
+      ios_signing:
+        provisioning_profiles:
+          - profile_name: 'default'
+      variables:
+        XCODE_WORKSPACE: "LEDCarApp.xcworkspace"
+        XCODE_SCHEME: "LEDCarApp"
+        XCODE_VERSION: "latest"
+      groups:
+        - signing_credentials
+    
+    scripts:
+      - name: Install pods
+        script: |
+          cd $FLUTTER_ROOT
+          pod repo update
+      
+      - name: Build iOS
+        script: |
+          xcodebuild build-for-testing \
+            -workspace "$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -derivedDataPath build/ios_build
+      
+      - name: Package IPA
+        script: |
+          xcodebuild -exportArchive \
+            -archivePath build/ios_build/LEDCarApp.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath $CM_BUILD_DIR/ipa \
+            -allowProvisioningUpdates
+
+    artifacts:
+      - $CM_BUILD_DIR/ipa/*.ipa
+      - $CM_BUILD_DIR/ipa/*.zip
+    
+    publishing:
+      email:
+        recipients:
+          - $CM_EMAIL
+        notify:
+          success: true
+          failure: true
+
+  android-workflow:
+    name: Build Android App
+    instance_type: linux
+    max_build_duration: 120
